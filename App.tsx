@@ -1,0 +1,119 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { BookOpenText } from 'lucide-react';
+import Editor from './components/Editor';
+import Preview from './components/Preview';
+import ImageManager from './components/ImageManager';
+import { detectPlaceholders, convertToHtml } from './utils/converter';
+import { proofreadText } from './services/geminiService';
+import { ImagePlaceholder } from './types';
+
+function App() {
+  const [text, setText] = useState<string>(`Este es el primer párrafo del capítulo. La historia comienza en un bosque oscuro donde el protagonista camina solo.
+
+IMAGE
+
+Otro párrafo que describe la imagen anterior.
+
+◇ ◆ ◇ ◆ ◇
+
+Más texto después del separador.
+
+IMAGEU
+
+Final del capítulo.`);
+
+  const [images, setImages] = useState<ImagePlaceholder[]>([]);
+  const [outputHtml, setOutputHtml] = useState<string>('');
+  const [isPolishing, setIsPolishing] = useState(false);
+
+  // Analyze text for placeholders whenever it changes
+  useEffect(() => {
+    // We only want to update the structure, but preserve URLs if IDs match or indices line up loosely.
+    // For simplicity in this demo, we re-detect but try to preserve URLs by index if types match.
+    const newPlaceholders = detectPlaceholders(text);
+    
+    setImages(prevImages => {
+      return newPlaceholders.map((newPh, idx) => {
+        const existing = prevImages[idx];
+        // If the placeholder at this index is the same type, keep the URL
+        if (existing && existing.type === newPh.type) {
+          return { ...newPh, url: existing.url };
+        }
+        return newPh;
+      });
+    });
+  }, [text]);
+
+  // Generate HTML whenever text or images change
+  useEffect(() => {
+    const html = convertToHtml(text, images);
+    setOutputHtml(html);
+  }, [text, images]);
+
+  const handleUpdateImageUrl = (id: string, url: string) => {
+    setImages(prev => prev.map(img => img.id === id ? { ...img, url } : img));
+  };
+
+  const handleAiPolish = async () => {
+    setIsPolishing(true);
+    try {
+      const corrected = await proofreadText(text);
+      setText(corrected);
+    } catch (e) {
+      alert("Error al conectar con la IA. Verifica tu API Key o intenta más tarde.");
+    } finally {
+      setIsPolishing(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 shadow-sm z-10">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-brand-500 rounded-lg text-white">
+              <BookOpenText size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Sekai Novel Formatter</h1>
+              <p className="text-xs text-slate-500">Herramienta de maquetación para administradores</p>
+            </div>
+          </div>
+          <div className="text-xs text-slate-400 font-mono">
+            v1.0.0
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-64px)]">
+        
+        {/* Left Column: Input */}
+        <div className="flex flex-col h-full gap-6 overflow-hidden">
+          <div className="flex-1 min-h-0">
+            <Editor 
+                value={text} 
+                onChange={setText} 
+                onAiPolish={handleAiPolish}
+                isPolishing={isPolishing}
+            />
+          </div>
+          {images.length > 0 && (
+            <div className="flex-none">
+                <ImageManager placeholders={images} onUpdateUrl={handleUpdateImageUrl} />
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Output */}
+        <div className="flex flex-col h-full overflow-hidden">
+            <Preview html={outputHtml} />
+        </div>
+
+      </main>
+    </div>
+  );
+}
+
+export default App;
