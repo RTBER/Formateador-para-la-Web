@@ -1,79 +1,65 @@
+
 import React, { useState } from 'react';
-import { Copy, Check, Eye, Code } from 'lucide-react';
+import { Copy, Check, Eye, Code, Download, Sun, Moon, Coffee, Maximize2, Minimize2 } from 'lucide-react';
 
 interface PreviewProps {
   html: string;
 }
 
+type Theme = 'light' | 'sepia' | 'dark';
+
 const Preview: React.FC<PreviewProps> = ({ html }) => {
-  const [activeTab, setActiveTab] = useState<'CODE' | 'VISUAL'>('CODE');
+  const [activeTab, setActiveTab] = useState<'CODE' | 'VISUAL'>('VISUAL');
+  const [theme, setTheme] = useState<Theme>('sepia');
+  const [isFullWidth, setIsFullWidth] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(html);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const themes = {
+    light: { bg: 'bg-white', text: '#1e293b', accent: '#f8fafc' },
+    sepia: { bg: 'bg-[#f4ecd8]', text: '#5b4636', accent: '#efe3c5' },
+    dark: { bg: 'bg-[#1a1a1a]', text: '#d1d5db', accent: '#262626' }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capitulo-${new Date().toISOString().slice(0,10)}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden transition-all">
       <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
         <div className="flex space-x-1">
-          <button
-            onClick={() => setActiveTab('CODE')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === 'CODE'
-                ? 'bg-brand-100 text-brand-700'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Code size={14} />
-            HTML
-          </button>
-          <button
-            onClick={() => setActiveTab('VISUAL')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === 'VISUAL'
-                ? 'bg-brand-100 text-brand-700'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Eye size={14} />
-            Visual
+          <button onClick={() => setActiveTab('VISUAL')} className={`preview-tab-btn ${activeTab === 'VISUAL' ? 'active' : ''}`}><Eye size={14} /> Vista</button>
+          <button onClick={() => setActiveTab('CODE')} className={`preview-tab-btn ${activeTab === 'CODE' ? 'active' : ''}`}><Code size={14} /> HTML</button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {activeTab === 'VISUAL' && (
+            <div className="flex items-center bg-white border border-slate-200 rounded-md p-0.5 shadow-sm">
+              <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-slate-100' : ''}`} title="Modo Claro"><Sun size={14} className="text-orange-500" /></button>
+              <button onClick={() => setTheme('sepia')} className={`p-1.5 rounded ${theme === 'sepia' ? 'bg-[#efe3c5]' : ''}`} title="Modo Sepia"><Coffee size={14} className="text-amber-700" /></button>
+              <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-slate-800' : ''}`} title="Modo Noche"><Moon size={14} className="text-blue-400" /></button>
+              <div className="w-px h-4 bg-slate-200 mx-1"></div>
+              <button onClick={() => setIsFullWidth(!isFullWidth)} className="p-1.5 text-slate-500 hover:text-slate-800" title="Alternar Ancho">
+                {isFullWidth ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+            </div>
+          )}
+          <button onClick={handleDownload} className="p-2 text-slate-600 hover:bg-slate-200 rounded-md" title="Descargar HTML"><Download size={16} /></button>
+          <button onClick={() => {
+            navigator.clipboard.writeText(html);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+            {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+            {copied ? '¡Ok!' : 'Copiar'}
           </button>
         </div>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-          {copied ? '¡Copiado!' : 'Copiar HTML'}
-        </button>
       </div>
 
-      <div className="flex-1 overflow-auto bg-slate-900 custom-scrollbar">
-        {activeTab === 'CODE' ? (
-          <pre className="p-4 text-sm font-mono text-green-400 whitespace-pre-wrap leading-relaxed">
-            {html || <span className="text-slate-500 italic">/* El código generado aparecerá aquí */</span>}
-          </pre>
-        ) : (
-            // Visual Preview Area - Simulating the target styles
-          <div className="p-6 bg-white min-h-full">
-            <style>{`
-              .preview-content p { margin-bottom: 1em; line-height: 1.6; color: #333; }
-              .preview-content .separador { text-align: center; color: #555; margin: 2rem 0; font-weight: bold; }
-              .preview-content img { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; border-radius: 4px; }
-              .preview-content .imagen-unica { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 2px solid #eee; }
-            `}</style>
-            <div 
-                className="preview-content max-w-2xl mx-auto"
-                dangerouslySetInnerHTML={{ __html: html || '<p class="text-gray-400 text-center italic">Vista previa vacía</p>' }} 
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default Preview;
+      <div className={`flex-1 overflow-auto ${activeTab === 'CODE' ? '
